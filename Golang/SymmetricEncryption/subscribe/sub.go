@@ -9,14 +9,12 @@ import (
 )
 
 var ciphertextTest []byte
-var messagePubHandler mqtt.MessageHandler = func(client mqtt.Client, msg mqtt.Message) {
-    fmt.Print("Received message: ")
-    fmt.Println(msg.Payload())
-    fmt.Printf("from topic: %s\n", msg.Topic())
 
-    key := []byte("passphrasewhichneedstobe32bytes!")
+func SymmetricEncryption_Decode (textCode, keyCode string) string {
 
-    ciphertext := msg.Payload()
+    key := []byte(keyCode)
+
+    ciphertext := []byte(textCode)
 
     c, err := aes.NewCipher(key)
     if err != nil {
@@ -38,7 +36,19 @@ var messagePubHandler mqtt.MessageHandler = func(client mqtt.Client, msg mqtt.Me
     if err != nil {
         fmt.Println(err)
     }
-    fmt.Println(string(plaintext))
+
+    return string(plaintext)
+
+}
+
+
+var messagePubHandler mqtt.MessageHandler = func(client mqtt.Client, msg mqtt.Message) {
+    fmt.Print("Received message: ")
+    fmt.Println(msg.Payload())
+    fmt.Printf("from topic: %s\n", msg.Topic())
+
+    plaintext := SymmetricEncryption_Decode(string(msg.Payload()), "passphrasewhichneedstobe32bytes!")
+    fmt.Println(plaintext)
 
 }
 

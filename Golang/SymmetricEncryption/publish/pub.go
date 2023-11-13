@@ -26,11 +26,10 @@ func mqttBegin(broker string, user string, pw string) mqtt.Client {
     return client
 }
 
-func main() {
-    fmt.Println("Encryption Program v0.01")
+func SymmetricEncryption_Encode (textCode, keyCode string) string {
 
-    text := []byte("Nguyen Duc Phang")
-    key := []byte("passphrasewhichneedstobe32bytes!")
+    text := []byte(textCode)
+    key := []byte(keyCode)
 
     // generate a new aes cipher using our 32 byte long key
     c, err := aes.NewCipher(key)
@@ -64,9 +63,16 @@ func main() {
     // slice. The nonce must be NonceSize() bytes long and unique for all
     // time, for a given key.
 
-    // fmt.Println(gcm.Seal(nonce, nonce, text, nil))
-
     asmEn := gcm.Seal(nonce, nonce, text, nil)
+
+
+    return string(asmEn)
+}
+
+func main() {
+    fmt.Println("Encryption Program")
+
+    asmEn := SymmetricEncryption_Encode("Test program", "passphrasewhichneedstobe32bytes!")
 
     /*Ma hoa sau do moi publish du lieu*/
     mqttClient = mqttBegin("localhost:1883", "Phan", "2000")
