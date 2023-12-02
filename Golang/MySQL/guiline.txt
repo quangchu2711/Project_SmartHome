@@ -1,0 +1,14 @@
+Bước 1: Tạo database
+Mở CMD của MySQL, đăng nhập mật khẩu và thực hiện gõ câu lệnh bên dưới:
+CREATE DATABASE xxx;
+(xxx chính là tên database muốn tạo)
+Bước 2: Tại file config.yaml của thư mục MySQL sửa User, Password của MySQL và sửa tên database vừa tạo
+Bước 3: Mở cmd tại đây và gõ lệnh chạy chương trình mySQL: go run sql.go
+Bước 4: Hiển thị dữ liệu của mySQL
+Gõ 2 câu lệnh sau:
+USE xxx
+(xxx là tên database vừa tạo)
+SELECT * FROM table_name;
+(table_name: Chính tên tại Table trong file config.yaml )
+
+
