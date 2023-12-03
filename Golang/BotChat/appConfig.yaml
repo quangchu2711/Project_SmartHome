@@ -1,10 +1,10 @@
 BotName               : 'bot'
 # BotToken              : '6077096010:AAHqTysDzt4s9a-qFnC7d8HRrGYnjzwFhwY'
 BotToken              : '6936610539:AAH4VPBJaF1-0sj0SRbV3S1FYdStssFtiTc'
-GroupID               : -935232508
+GroupID               : -4068199885
 Broker                : 'broker.hivemq.com:1883'
 User                  : 'dahtn'
 Password              : '230308'
 TopicTxLed            : 'farm/device/control'
 TopicRxSensor         : 'farm/+/value'
-
+TopicDeviceSatus      : 'farm/device/status'

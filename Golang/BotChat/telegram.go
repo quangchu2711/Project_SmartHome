@@ -1,14 +1,15 @@
 package main
 
 import (
-    // "fmt"
-    "log"
+    "fmt"
     "strings"
     tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
+    mqtt "github.com/eclipse/paho.mqtt.golang"
 )
 
 var g_tgBot *tgbotapi.BotAPI
 var g_tgUpdates tgbotapi.UpdatesChannel
+var g_cnt int32
 
 func TELEGRAM_SendNormalMessgae (groupID int64, message string) {
     newMsg := tgbotapi.NewMessage(groupID, message)
@@ -18,12 +19,40 @@ func TELEGRAM_SendNormalMessgae (groupID int64, message string) {
 
 func TELEGRAM_SendReplyMessgae (groupID int64, userName string, replyMsg string) {
     var newMsg string
-    newMsg = strings.Replace("<b>userName</b> >> <i>replyMsg</i>", "userName", userName, 1)
+    newMsg = strings.Replace("<b>userName</b> ==> <i>replyMsg</i>", "userName", userName, 1)
     newMsg = strings.Replace(newMsg, "replyMsg", replyMsg, 1)
 
     message := tgbotapi.NewMessage(groupID, newMsg)
     message.ParseMode = "HTML"
     g_tgBot.Send(message)
+}
+
+var APP_RecevieStatusMsg mqtt.MessageHandler = func(client mqtt.Client, msg mqtt.Message) {
+    mqttMsg := string(msg.Payload())
+    fmt.Printf("Received message from topic: %s - msg: %s\n", msg.Topic(), mqttMsg)
+
+    if mqttMsg == "ON1" && g_cnt > 0 {
+        g_home.Kitchen.LedStatus = true;
+        // TELEGRAM_SendReplyMessgae(g_cfgFile.GroupID, "Người dùng Node-Red", "Đèn nông trại đã bật")
+    } else if mqttMsg == "OFF1" && g_cnt > 0  {
+        g_home.Kitchen.LedStatus = false;
+        // TELEGRAM_SendReplyMessgae(g_cfgFile.GroupID, "Người dùng Node-Red", "Đèn nông trại đã tắt")
+    } else if mqttMsg == "ON2" && g_cnt > 0 {
+        g_home.LivingRoom.LedStatus = true;
+        // TELEGRAM_SendReplyMessgae(g_cfgFile.GroupID, "Người dùng Node-Red", "Quạt nông trại đã bật")
+    } else if mqttMsg == "OFF2" && g_cnt > 0 {
+        g_home.LivingRoom.LedStatus = false;
+        // TELEGRAM_SendReplyMessgae(g_cfgFile.GroupID, "Người dùng Node-Red", "Quạt nông trại đã tắt")
+    }
+    g_cnt++;
+    if g_cnt > 1 {
+        g_cnt = 1
+    }
+}
+var APP_RecevieWarningMsg mqtt.MessageHandler = func(client mqtt.Client, msg mqtt.Message) {
+    mqttMsg := string(msg.Payload())
+    fmt.Printf("Received message from topic: %s - msg: %s\n", msg.Topic(), mqttMsg)
+    TELEGRAM_SendReplyMessgae(g_cfgFile.GroupID, "Cảnh báo người dùng", "Trời đang mưa")
 }
 
 func TELEGRAM_SendInlineButtonMsg(groupID int64, msg string) {
@@ -65,14 +94,11 @@ func TELEGRAM_HandleMessage(groupID string, ) {
 
 }
 
-func TELEGRAM_UpdateMessage(botToken string, groupID int64, homeStatus *APP_HomeStatus_t) {
+func TELEGRAM_UpdateMessage(groupID int64, homeStatus *APP_HomeStatus_t) {
     var checkMsg bool
     var userName string
     var resMsg string
 
-    /* Config bot token */
-    g_tgBot, _ = tgbotapi.NewBotAPI(botToken)
-    log.Printf("Authorized on account %s", g_tgBot.Self.UserName)
     /* Update message */
     newUpdate := tgbotapi.NewUpdate(0)
     g_tgUpdates = g_tgBot.GetUpdatesChan(newUpdate)

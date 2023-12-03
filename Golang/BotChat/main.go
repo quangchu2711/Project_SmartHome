@@ -9,6 +9,7 @@ import (
     "strconv"
     mqtt "github.com/eclipse/paho.mqtt.golang"
     "strings"
+    tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )
 
 type APP_FileConfig_t struct {
@@ -22,6 +23,7 @@ type APP_FileConfig_t struct {
     Password string
     TopicTxLed string
     TopicRxSensor string
+    TopicDeviceSatus string
 }
 
 type APP_DHTSensor_t struct {
@@ -57,6 +59,8 @@ type APP_HomeStatus_t struct {
 
 var g_cfgFile APP_FileConfig_t
 var g_serialClient mqtt.Client
+var g_serialClient1 mqtt.Client
+var g_serialClient2 mqtt.Client
 var g_home APP_HomeStatus_t
 const (
    DHT11    int = 1
@@ -121,15 +125,22 @@ func APP_Init() {
     /* Đoc thông tin file xong, để lấy một số thông tin:
     ví dụ: Bot token, tên bot, groupID */
     APP_ConfigFile()
+    /* Config bot token */
+    g_tgBot, _ = tgbotapi.NewBotAPI(g_cfgFile.BotToken)
+    log.Printf("Authorized on account %s", g_tgBot.Self.UserName)
     /* Hiên thị thông tin lên bot token */
     fmt.Println(g_cfgFile.BotToken)
     g_serialClient = APP_MqttBegin(g_cfgFile.Broker, g_cfgFile.User, g_cfgFile.Password, &APP_RecevieMQTTMessage)
     g_serialClient.Subscribe(g_cfgFile.TopicRxSensor, 1, nil)
+    g_serialClient1 = APP_MqttBegin(g_cfgFile.Broker, g_cfgFile.User, g_cfgFile.Password, &APP_RecevieStatusMsg)
+    g_serialClient1.Subscribe("farm/device/status", 1, nil)
+    g_serialClient2 = APP_MqttBegin(g_cfgFile.Broker, g_cfgFile.User, g_cfgFile.Password, &APP_RecevieWarningMsg)
+    g_serialClient2.Subscribe("farm/warning", 1, nil)
     fmt.Println("MQTT Connected")
 }
 
 func APP_Handle() {
-    TELEGRAM_UpdateMessage(g_cfgFile.BotToken, g_cfgFile.GroupID, &g_home)
+    TELEGRAM_UpdateMessage(g_cfgFile.GroupID, &g_home)
 }
 
 func main() {

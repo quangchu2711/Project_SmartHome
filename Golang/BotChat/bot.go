@@ -93,24 +93,24 @@ func BOT_Progress (msg string, homeStatus *APP_HomeStatus_t) (bool, string) {
         }
         inlineType = false
     case "Bật quạt nông trại":
-        APP_SendMQTTMessage("ON1")
-        msg = "Quạt nông trại đã bật"
-        homeStatus.Kitchen.LedStatus = true
-        inlineType = false
-    case "Tắt quạt nông trại":
-        APP_SendMQTTMessage("OFF1")
-        msg = "Quạt nông trại đã tắt"
-        homeStatus.Kitchen.LedStatus = false
-        inlineType = false
-    case "Bật đèn nông trại":
         APP_SendMQTTMessage("ON2")
-        msg = "Đèn nông trại đã bật"
+        msg = "Quạt nông trại đã bật"
         homeStatus.LivingRoom.LedStatus = true
         inlineType = false
-    case "Tắt đèn nông trại":
+    case "Tắt quạt nông trại":
         APP_SendMQTTMessage("OFF2")
-        msg = "Đèn nông trại đã tắt"
+        msg = "Quạt nông trại đã tắt"
         homeStatus.LivingRoom.LedStatus = false
+        inlineType = false
+    case "Bật đèn nông trại":
+        APP_SendMQTTMessage("ON1")
+        msg = "Đèn nông trại đã bật"
+        homeStatus.Kitchen.LedStatus = true
+        inlineType = false
+    case "Tắt đèn nông trại":
+        APP_SendMQTTMessage("OFF1")
+        msg = "Đèn nông trại đã tắt"
+        homeStatus.Kitchen.LedStatus = false
         inlineType = false
     default: /* Khác tất cả tin nhắn */
         msg = "[Nông trại không hỗ trợ câu lệnh, vui lòng thử lại một số lệnh sau:\n[1] help\n[2] control\n[3] status/help/control/status]"
