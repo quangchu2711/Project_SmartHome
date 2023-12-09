@@ -27,6 +27,16 @@
 #define SIREN_ON_CODE        (0x10U)
 #define SIREN_OFF_CODE       (0x20U)
 
+#define DOOR_POS_OPEN       (0)
+#define DOOR_POS_CLOSE      (90)
+#define FEED_POS_OPEN       (0)
+#define FEED_POS_CLOSE      (90)
+
+#define SET_ALARM_LED(x) GPIO_WriteBit(GPIOB, GPIO_Pin_6, x);
+#define SET_LED(x) GPIO_WriteBit(GPIOB, GPIO_Pin_7, x);
+#define SET_FAN(x) GPIO_WriteBit(GPIOA, GPIO_Pin_4, x);
+
+
 //Typedef
 typedef struct sensor_data
 {
@@ -43,9 +53,8 @@ typedef enum
     MODE_ChangeTime = 0x00U,
     MODE_SeTime_ControlLed = 0x01U,
     MODE_SeTime_AutoFeed = 0x02U,
-    MODE_SetTime_ControlDoor = 0x03U,
-    MODE_Display = 0x04U,
-    MODE_SelectOption = 0x05U
+    MODE_Display = 0x03U,
+    MODE_SelectOption = 0x04U
 } Mode_SystemTime_t;
 
 typedef enum
@@ -64,10 +73,20 @@ Mode_SystemTime_t g_SysTimeMode;
 Time_Handle_t g_currentTimeEdit;
 Mode_SystemTime_t g_timeChangeOption;
 AppTimeManage_TimeValue_t g_TimeVal[4];
-char g_optionInfor[5][16] = {"   [Edit Time] ", "  [Alarm Time] ", "   [Feed Time] ", "  [Door Time]  ", "     [Exit] "};
+char g_optionInfor[4][16] = {"   [Edit Time] ", "  [Alarm Time] ", "   [Feed Time] ", "     [Exit] "};
 uint8_t g_flagCheckPressRL_Button = 0;
 uint32_t g_TimeRun;
 uint8_t g_flagDisplay;
+
+uint8_t g_frameBuffer[5] = {0x00, 0x00, 0x00, 0x00, 0x00};
+uint8_t g_buffIdx = 0;
+
+uint8_t g_resLightData = 50;
+uint8_t g_resRainData = 50;
+
+bool g_Alarm = false;
+bool g_Feed = false;
+bool doorSta = false;
 
 //Variable for Button
 ButtonManagement g_mButton;
@@ -85,7 +104,8 @@ static void Mode_SelectOption(void);
 
 static void GPIO_Config(void);
 
-uint8_t g_Tem1, g_Hum1;
+static void Handle_DataFromToEsp(uint8_t readData);
+
 
 int main()
 {
@@ -103,22 +123,33 @@ int main()
 
     DelayTimer_Init();
 
-//    DHT11_Init(PORTB, GPIO_Pin_6);
-//    uint8_t g_Tem1, g_Hum1;
-//    DHT11_Read(PORTB, GPIO_Pin_6, &g_Tem1, &g_Hum1);
-    
     DHT11_Init(PORTB, GPIO_Pin_8);
     DHT11_Read(PORTB, GPIO_Pin_8, &g_senSorStruct.tem1, &g_senSorStruct.hum1);
     DHT11_Init(PORTB, GPIO_Pin_5);
-    DHT11_Read(PORTB, GPIO_Pin_5, &g_senSorStruct.tem2, &g_senSorStruct.hum2);    
-//    SERVO_Init(GPIOA, GPIO_Pin_6);
-//    SERVO_Write(GPIOA, GPIO_Pin_6, 0);
-//    DelayTimer_Ms(1000);
-//    SERVO_Write(GPIOA, GPIO_Pin_6, 180);
-//    DelayTimer_Ms(1000);
+    DHT11_Read(PORTB, GPIO_Pin_5, &g_senSorStruct.tem2, &g_senSorStruct.hum2);
+
+    SET_ALARM_LED(1);
+    SET_FAN(1);
+    SET_LED(1);
+    DelayTimer_Ms(500);
+    SET_ALARM_LED(0);
+    SET_LED(0);
+    SET_FAN(0);
+    DelayTimer_Ms(500);
+
+    SERVO_Init(GPIOB, GPIO_Pin_0);
+    SERVO_Init(GPIOB, GPIO_Pin_1);
+    SERVO_Write(GPIOB, GPIO_Pin_0, FEED_POS_OPEN);
+    SERVO_Write(GPIOB, GPIO_Pin_1, DOOR_POS_OPEN);
+    DelayTimer_Ms(500);
+    SERVO_Write(GPIOB, GPIO_Pin_0, FEED_POS_CLOSE);
+    SERVO_Write(GPIOB, GPIO_Pin_1, DOOR_POS_CLOSE);
+    DelayTimer_Ms(500);
+
     LIGHT_Init();
 
     uint32_t tickCnt;
+    uint32_t tickCnt1;
     uint8_t readData;
 
     g_SysTimeMode = MODE_Display;
@@ -133,9 +164,15 @@ int main()
         g_sensorBuffer[i] = 0x00;
     }
 
+    g_Alarm = false;
+    g_Feed = false;
+    doorSta = false;
+
     uint8_t ledSta = 0;
     uint8_t testValue = 15;
     uint8_t testValue1 = 10;
+    uint8_t ledCnt;
+    uint8_t ledAlarmSta;
 
     while (1)
     {
@@ -147,7 +184,7 @@ int main()
         if (UART_Available() > 0)
         {
             readData = UART_Read();
-//            Handle_DataFromToEsp(readData);
+            Handle_DataFromToEsp(readData);
         }
 
         Button_CheckMode();
@@ -159,7 +196,6 @@ int main()
         case MODE_ChangeTime:
         case MODE_SeTime_ControlLed:
         case MODE_SeTime_AutoFeed:
-        case MODE_SetTime_ControlDoor:
             LCD_Gotoxy(0, 0);
             LCD_Printf("%s", g_optionInfor[g_SysTimeMode]);
             Button_EditTime(&g_TimeVal[g_SysTimeMode]);
@@ -169,12 +205,25 @@ int main()
             break;
         }
 
+        if (g_Alarm == false)
+        {
+            if (g_senSorStruct.light > g_resLightData)
+            {
+                SET_ALARM_LED(1);
+            }
+            else
+            {
+                SET_ALARM_LED(0);
+            }
+        }
+
+        if (g_senSorStruct.rain > g_resRainData && doorSta == true)
+        {
+            SERVO_Write(GPIOB, GPIO_Pin_1, DOOR_POS_CLOSE);
+        }
+        
         if (Timer_GetTickMs() - tickCnt > 800)
         {
-//            g_sensorBuffer[1] = testValue;
-//            g_sensorBuffer[2] = testValue;
-//            g_sensorBuffer[3] = testValue;
-//            g_sensorBuffer[4] = testValue;
             g_sensorBuffer[1] = g_senSorStruct.tem1;
             g_sensorBuffer[2] = g_senSorStruct.hum1;
             g_sensorBuffer[3] = g_senSorStruct.tem2;
@@ -194,6 +243,29 @@ int main()
             ledSta = !ledSta;
             GPIO_WriteBit(GPIOC, GPIO_Pin_13, ledSta);
             tickCnt = Timer_GetTickMs();
+        }
+        else if ( (Timer_GetTickMs() - tickCnt1 > 300) && ((g_Alarm == true) || (g_Feed == true)) )
+        {
+            if (g_Alarm == true)
+            {
+                ledAlarmSta = !ledAlarmSta;
+                SET_ALARM_LED(ledAlarmSta);
+            }
+            ledCnt++;
+            if (ledCnt > 10)
+            {
+                ledCnt = 0;
+                if (g_Alarm == true)
+                {
+                    g_Alarm = false;
+                }
+                if (g_Feed == true)
+                {
+                    SERVO_Write(GPIOB, GPIO_Pin_0, FEED_POS_CLOSE);
+                    g_Feed = false;
+                }
+            }
+            tickCnt1 = Timer_GetTickMs();
         }
     }
 }
@@ -268,7 +340,7 @@ static void Button_CheckMode(void)
             LCD_Clear();
         }
     }
-    else if (g_SysTimeMode >= MODE_ChangeTime && g_SysTimeMode <=  MODE_SetTime_ControlDoor)
+    else if (g_SysTimeMode >= MODE_ChangeTime && g_SysTimeMode <=  MODE_SeTime_AutoFeed)
     {
         if (Button_OnHold(BUTTON_PORT, MIDDLE_BUTTON_PIN, &g_mButton))
         {
@@ -346,8 +418,6 @@ static void Button_EditTime(AppTimeManage_TimeValue_t *pTime)
 
 static void Mode_DisplayAndHandleData(void)
 {
-    uint8_t controlCode = 0x00U;
-    bool checkSendQueue = false;
 
     /* Hien thi thong tin len man hinh LCD: time va sensor */
     AppTimeManage_GetCurrentTime(&g_TimeVal[MODE_ChangeTime]);
@@ -356,22 +426,16 @@ static void Mode_DisplayAndHandleData(void)
                                          g_senSorStruct.light, '%', g_senSorStruct.rain, '%');
 
     LCD_Gotoxy(0, 1);
-    LCD_Printf("%02d%cC%02d%c %02d%cC%02d%c", g_senSorStruct.tem1, 223, g_senSorStruct.hum1, '%', g_senSorStruct.tem2, 223, g_senSorStruct.hum2, '%');
+    LCD_Printf("%02dC%02d%c%02dC%02d%c%02d%02d ", g_senSorStruct.tem1, g_senSorStruct.hum1, '%', g_senSorStruct.tem2, g_senSorStruct.hum2, '%', g_resLightData, g_resRainData);
     /*Check thoi gian bao thuc cua tung che do*/
     if (AppTimeManage_CheckTimeStatus(RQ_ControlLed, &g_TimeVal[MODE_ChangeTime]) == true)
     {
-        checkSendQueue = true;
-        controlCode |= SIREN_ON_CODE;
+        g_Alarm = true;
     }
     if (AppTimeManage_CheckTimeStatus(RQ_AutoFeed, &g_TimeVal[MODE_ChangeTime]) == true)
     {
-        checkSendQueue = true;
-        controlCode |= AUTO_FEED_CODE;
-    }
-    if (AppTimeManage_CheckTimeStatus(RQ_AutoOpenDoor, &g_TimeVal[MODE_ChangeTime]) == true)
-    {
-        checkSendQueue = true;
-        controlCode |= OPEN_DOOR_CODE;
+        g_Feed = true;
+        SERVO_Write(GPIOB, GPIO_Pin_0, FEED_POS_OPEN);
     }
 }
 
@@ -405,5 +469,86 @@ static void GPIO_Config(void)
     GPIO_Struct.GPIO_Pin =  GPIO_Pin_13;
     GPIO_Struct.GPIO_Speed = GPIO_Speed_10MHz;
     GPIO_Init(GPIOC, &GPIO_Struct);
+
+    RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOB, ENABLE);
+    GPIO_Struct.GPIO_Mode = GPIO_Mode_Out_PP;
+    GPIO_Struct.GPIO_Pin =  GPIO_Pin_6 | GPIO_Pin_7;
+    GPIO_Struct.GPIO_Speed = GPIO_Speed_10MHz;
+    GPIO_Init(GPIOB, &GPIO_Struct);
+
+    RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOA, ENABLE);
+    GPIO_Struct.GPIO_Mode = GPIO_Mode_Out_PP;
+    GPIO_Struct.GPIO_Pin =  GPIO_Pin_4;
+    GPIO_Struct.GPIO_Speed = GPIO_Speed_10MHz;
+    GPIO_Init(GPIOA, &GPIO_Struct);
+}
+
+static void Handle_DataFromToEsp(uint8_t readData)
+{
+    uint8_t ledCode;
+    uint8_t resData;
+
+    if (readData == '\n' || g_buffIdx == 4)
+    {
+       g_frameBuffer[g_buffIdx] = 0x00;
+       resData = atoi(&g_frameBuffer[1]);
+       if (g_frameBuffer[0] == 'L')
+       {
+           g_resLightData = resData;
+       }
+       else if (g_frameBuffer[0] == 'R')
+       {
+           g_resRainData = resData;
+       }
+       else if (g_frameBuffer[0] == 'D')
+       {
+           if (g_frameBuffer[1] == '1')
+           {
+               SET_LED(1);
+           }
+           else if (g_frameBuffer[1] == '0')
+           {
+                SET_LED(0);
+           }
+       }
+       else if (g_frameBuffer[0] == 'U')
+       {
+           if (g_frameBuffer[1] == '1')
+           {
+               SERVO_Write(GPIOB, GPIO_Pin_1, DOOR_POS_OPEN);
+               doorSta = true;
+           }
+           else if (g_frameBuffer[1] == '0')
+           {
+               SERVO_Write(GPIOB, GPIO_Pin_1, DOOR_POS_CLOSE);
+               doorSta = false;
+           }
+       }
+       else if (g_frameBuffer[0] == 'F')
+       {
+           if (g_frameBuffer[1] == '1')
+           {
+               SET_FAN(1);
+           }
+           else if (g_frameBuffer[1] == '0')
+           {
+               SET_FAN(0);;
+           }
+       }
+
+       /* Reset array */
+       g_buffIdx = 0;
+       g_frameBuffer[0] = 0x00;
+       g_frameBuffer[1] = 0x00;
+       g_frameBuffer[2] = 0x00;
+       g_frameBuffer[3] = 0x00;
+       g_frameBuffer[4] = 0x00;
+
+    }
+   else
+   {
+       g_frameBuffer[g_buffIdx] = readData;
+       g_buffIdx += 1;
+   }
 }
 

@@ -512,6 +512,16 @@
               <FileType>1</FileType>
               <FilePath>..\..\myLibrary\light.c</FilePath>
             </File>
+            <File>
+              <FileName>RingBuffer.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\myLibrary\RingBuffer.c</FilePath>
+            </File>
+            <File>
+              <FileName>Serial.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\myLibrary\Serial.c</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>

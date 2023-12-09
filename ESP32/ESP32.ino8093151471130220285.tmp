@@ -2,36 +2,28 @@
 #include <PubSubClient.h>
 
 #define DASHBOARD_MQTT_SERVER               "broker.hivemq.com"
-// #define DASHBOARD_MQTT_SERVER               "192.168.24.105"
 
-#define DASHBOARD_MQTT_PORT                  1883
+#define DASHBOARD_MQTT_PORT                 1883
 #define DASHBOARD_MQTT_USER                 "test"
 #define DASHBOARD_MQTT_PASSWORD             "123456"
 
-#define DASHBOARD_TOPIC_TEMPERATURE1        "MySensor/Temperature1"
-#define DASHBOARD_TOPIC_HUMIDITY1           "MySensor/Humidity1"
-#define DASHBOARD_TOPIC_TEMPERATURE2        "MySensor/Temperature2"
-#define DASHBOARD_TOPIC_HUMIDITY2           "MySensor/Humidity2"
-#define DASHBOARD_TOPIC_LIGHT               "MySensor/Light"
-#define DASHBOARD_TOPIC_RAIN                "MySensor/Rain"
+#define DASHBOARD_TOPIC_TEMPERATURE         "MySensor/Temperature"
+#define DASHBOARD_TOPIC_HUMIDITY            "MySensor/Humidity"
+#define DASHBOARD_TOPIC_LIGHT_1             "MySensor/Light1"
+#define DASHBOARD_TOPIC_LIGHT_2             "MySensor/Light2"
 #define DASHBOARD_TOPIC_SOIL                "MySensor/Soil"
 
 #define DASHBOARD_TOPIC_LED                 "MyLed/Control"
 #define DASHBOARD_TOPIC_THRESHOLD_RAIN      "MySensor/Threshold/Rain"
 #define DASHBOARD_TOPIC_THRESHOLD_LIGHT     "MySensor/Threshold/Light"
-
+#define DASHBOARD_TOPIC_THRESHOLD_SOIL      "MySensor/Threshold/Soil"
 #define DASHBOARD_TOPIC_MODE                "MyRelay/Mode"
 #define DASHBOARD_TOPIC_RELAY               "MyRelay/Control"
 #define DASHBOARD_TOPIC_TEST                "MyTest/Check"
 
 #define DASHBOARD_TOPIC_SENSOR              "MySensor/Value"
 
-#define CHATBOT_TOPIC_CONTROL               "farm/device/control"
-#define CHATBOT_TOPIC_DHT                   "farm/DHT11/control"
-#define CHATBOT_TOPIC_ADC                   "farm/ADC/value"
-#define CHATBOT_TOPIC_STATUS                "farm/device/status"
-
-#define DASHBOARD_BUFFER_LENGTH 9
+#define DASHBOARD_BUFFER_LENGTH 7
 #define MESSAGE_START                       ('(')
 #define MESSAGE_END                         (')')
 
@@ -43,14 +35,14 @@ uint8_t g_readData;
 uint8_t g_bufferRx[DASHBOARD_BUFFER_LENGTH];
 uint8_t g_idx = 0;
 
-char* g_ssid = "Trung Khai T4";
-char* g_password = "21212121";
+const char* g_ssid = "Quang";
+const char* g_password = "27112000";
 int g_updateTime = 0;
 uint8_t g_ledSta = 0;
 
 void setup(void)
 {
-    Serial.begin(115200);
+    Serial.begin(9600);
     Serial.setTimeout(500);
     pinMode(2, OUTPUT);
 
@@ -62,7 +54,6 @@ void setup(void)
         digitalWrite(2, g_ledSta);
         delay(100);
     }
-    digitalWrite(2, 0);
     client.setServer(DASHBOARD_MQTT_SERVER, DASHBOARD_MQTT_PORT);
     client.setCallback(Dashboard_Callback);
     DashBoard_ConnectToBroker();
@@ -84,7 +75,6 @@ void Dashboard_ReceiveDataFromSTM32(void)
         g_readData = Serial.read();
         if (g_readData == MESSAGE_START && g_receiveFlag == false)
         {
-            digitalWrite(2, 1);
             g_receiveFlag = true;
             g_idx = 0;
             g_bufferRx[DASHBOARD_BUFFER_LENGTH - 1] = '\0';
@@ -93,7 +83,6 @@ void Dashboard_ReceiveDataFromSTM32(void)
         {
             if (g_receiveFlag == true)
             {
-                digitalWrite(2, 1);
                 if (g_idx < DASHBOARD_BUFFER_LENGTH)
                 {
                     g_bufferRx[g_idx++] = g_readData;
@@ -112,48 +101,34 @@ void Dashboard_ReceiveDataFromSTM32(void)
 uint8_t checksumVal = 0;
 char tem1[4];
 char hum1[4];
-char tem2[4];
+char light1[4];
+char light2[4];
+char soil[4];
 char hum2[4];
-char light[4];
-char rain[4];
-char sensors[30];
-char dhtSensor[20];
-char adcSensor[20];
+char sensor[9];
 void Dashboard_HandleDataFromSTM32(void)
 {
 
-   checksumVal = g_bufferRx[0] ^ g_bufferRx[1] ^ g_bufferRx[2] ^ g_bufferRx[3] ^ g_bufferRx[4] ^ g_bufferRx[5];
-   // if (checksumVal == g_bufferRx[6])
-   {
+    checksumVal = g_bufferRx[0] ^ g_bufferRx[1] ^ g_bufferRx[2] ^ g_bufferRx[3] ^ g_bufferRx[4];
+    if (checksumVal == g_bufferRx[5])
+    {
         sprintf(tem1, "%d", g_bufferRx[0]);
-        client.publish(DASHBOARD_TOPIC_TEMPERATURE1, tem1, true);
+        client.publish(DASHBOARD_TOPIC_TEMPERATURE, tem1, true);
         sprintf(hum1, "%d", g_bufferRx[1]);
-        client.publish(DASHBOARD_TOPIC_HUMIDITY1, hum1, true);
+        client.publish(DASHBOARD_TOPIC_HUMIDITY, hum1, true);
 
-        sprintf(tem2, "%d", g_bufferRx[2]);
-        client.publish(DASHBOARD_TOPIC_TEMPERATURE2, tem2, true);
+        sprintf(light1, "%d", g_bufferRx[2]);
+        client.publish(DASHBOARD_TOPIC_LIGHT_1, light1, true);
 
-        sprintf(hum2, "%d", g_bufferRx[3]);
-        client.publish(DASHBOARD_TOPIC_HUMIDITY2, hum2, true);
+        sprintf(light2, "%d", g_bufferRx[3]);
+        client.publish(DASHBOARD_TOPIC_LIGHT_2, light2, true);
 
-        sprintf(light, "%d", g_bufferRx[4]);
-        client.publish(DASHBOARD_TOPIC_LIGHT, light, true);
+        sprintf(soil, "%d", g_bufferRx[4]);
+        client.publish(DASHBOARD_TOPIC_SOIL, soil, true);
 
-        sprintf(rain, "%d", g_bufferRx[5]);
-        client.publish(DASHBOARD_TOPIC_RAIN, rain, true);
-
-        /* MySQL */
-        sprintf(sensors, "%d/%d/%d/%d/%d/%d", g_bufferRx[0], g_bufferRx[1], g_bufferRx[2],\
-                                              g_bufferRx[3], g_bufferRx[4], g_bufferRx[5]);
-        client.publish(DASHBOARD_TOPIC_SENSOR, sensors, true);
-
-        /* Chat bot */
-        sprintf(dhtSensor, "%d/%d/%d/%d", g_bufferRx[0], g_bufferRx[1], g_bufferRx[2], g_bufferRx[3]);
-        client.publish(CHATBOT_TOPIC_DHT, dhtSensor, true);
-        sprintf(adcSensor, "%d/%d", g_bufferRx[4], g_bufferRx[5]);
-        client.publish(CHATBOT_TOPIC_ADC, adcSensor, true);
-        digitalWrite(2, 0);
-   }
+        sprintf(sensor, "%d/%d/%d/%d/%d", g_bufferRx[0], g_bufferRx[1], g_bufferRx[2], g_bufferRx[3], g_bufferRx[4]);
+        client.publish(DASHBOARD_TOPIC_SENSOR, sensor, true);
+    }
 }
 
 void DashBoard_ConnectToBroker() {
@@ -164,13 +139,13 @@ void DashBoard_ConnectToBroker() {
             client.subscribe(DASHBOARD_TOPIC_LED);
             client.subscribe(DASHBOARD_TOPIC_THRESHOLD_RAIN);
             client.subscribe(DASHBOARD_TOPIC_THRESHOLD_LIGHT);
+            client.subscribe(DASHBOARD_TOPIC_THRESHOLD_SOIL);
             client.subscribe(DASHBOARD_TOPIC_MODE);
             client.subscribe(DASHBOARD_TOPIC_RELAY);
-            client.subscribe(CHATBOT_TOPIC_CONTROL);
-            digitalWrite(2, LOW);
+            digitalWrite(16, HIGH);
         } else {
             g_ledSta = !g_ledSta;
-            digitalWrite(2, g_ledSta);
+            digitalWrite(16, g_ledSta);
             delay(1000);
         }
     }
@@ -183,35 +158,18 @@ void Dashboard_Callback(char* topic, byte *payload, unsigned int length) {
     statusMsg[length] = NULL;
     String topicMsg(statusMsg);
 
-    if (String(topic) == CHATBOT_TOPIC_CONTROL)
+    if (String(topic) == DASHBOARD_TOPIC_LED)
     {
-        if (topicMsg == "ON1")
+        if (topicMsg == "on")
         {
             Serial.println("D1");
         }
-        else if (topicMsg == "OFF1")
+        else if (topicMsg == "off")
         {
             Serial.println("D0");
         }
-        else if (topicMsg == "ON2")
-        {
-            Serial.println("F1");
-        }
-        else if (topicMsg == "OFF2")
-        {
-            Serial.println("F0");
-        }
-        else if (topicMsg == "ON3")
-        {
-            Serial.println("U1");
-        }
-        else if (topicMsg == "OFF3")
-        {
-            Serial.println("U0");
-        }
-        client.publish(CHATBOT_TOPIC_STATUS, statusMsg, true);
     }
-    else if (String(topic) == DASHBOARD_TOPIC_THRESHOLD_RAIN)
+    if (String(topic) == DASHBOARD_TOPIC_THRESHOLD_RAIN)
     {
         Serial.println("R" +topicMsg);
     }
@@ -219,31 +177,35 @@ void Dashboard_Callback(char* topic, byte *payload, unsigned int length) {
     {
         Serial.println("L" + topicMsg);
     }
-    // else if (String(topic) == DASHBOARD_TOPIC_MODE)
-    // {
-    //     if (topicMsg == "true")
-    //     {
-    //         g_mode = true;
-    //         Serial.println("M1");
-    //     }
-    //     else if (topicMsg == "false")
-    //     {
-    //         g_mode = false;
-    //         Serial.println("M0");
-    //     }
-    // }
-    // else if (String(topic) == DASHBOARD_TOPIC_RELAY)
-    // {
-    //     if (g_mode == true)
-    //     {
-    //       if (topicMsg == "on")
-    //       {
-    //           Serial.println("E1");
-    //       }
-    //       else if (topicMsg == "off")
-    //       {
-    //           Serial.println("E0");
-    //       }
-    //     }
-    // }
+    else if (String(topic) == DASHBOARD_TOPIC_THRESHOLD_SOIL)
+    {
+        Serial.println("S" + topicMsg);
+    }
+    else if (String(topic) == DASHBOARD_TOPIC_MODE)
+    {
+        if (topicMsg == "true")
+        {
+            g_mode = true;
+            Serial.println("M1");
+        }
+        else if (topicMsg == "false")
+        {
+            g_mode = false;
+            Serial.println("M0");
+        }
+    }
+    else if (String(topic) == DASHBOARD_TOPIC_RELAY)
+    {
+        if (g_mode == true)
+        {
+          if (topicMsg == "on")
+          {
+              Serial.println("E1");
+          }
+          else if (topicMsg == "off")
+          {
+              Serial.println("E0");
+          }
+        }
+    }
 }

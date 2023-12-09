@@ -2,9 +2,8 @@
 #include <PubSubClient.h>
 
 #define DASHBOARD_MQTT_SERVER               "broker.hivemq.com"
-// #define DASHBOARD_MQTT_SERVER               "192.168.24.105"
 
-#define DASHBOARD_MQTT_PORT                  1883
+#define DASHBOARD_MQTT_PORT                 1883
 #define DASHBOARD_MQTT_USER                 "test"
 #define DASHBOARD_MQTT_PASSWORD             "123456"
 
@@ -43,8 +42,8 @@ uint8_t g_readData;
 uint8_t g_bufferRx[DASHBOARD_BUFFER_LENGTH];
 uint8_t g_idx = 0;
 
-char* g_ssid = "Trung Khai T4";
-char* g_password = "21212121";
+char* g_ssid = "Quang";
+char* g_password = "12233445";
 int g_updateTime = 0;
 uint8_t g_ledSta = 0;
 
@@ -84,7 +83,6 @@ void Dashboard_ReceiveDataFromSTM32(void)
         g_readData = Serial.read();
         if (g_readData == MESSAGE_START && g_receiveFlag == false)
         {
-            digitalWrite(2, 1);
             g_receiveFlag = true;
             g_idx = 0;
             g_bufferRx[DASHBOARD_BUFFER_LENGTH - 1] = '\0';
@@ -93,7 +91,6 @@ void Dashboard_ReceiveDataFromSTM32(void)
         {
             if (g_receiveFlag == true)
             {
-                digitalWrite(2, 1);
                 if (g_idx < DASHBOARD_BUFFER_LENGTH)
                 {
                     g_bufferRx[g_idx++] = g_readData;
@@ -116,15 +113,15 @@ char tem2[4];
 char hum2[4];
 char light[4];
 char rain[4];
-char sensors[30];
+char sensor[20];
 char dhtSensor[20];
 char adcSensor[20];
 void Dashboard_HandleDataFromSTM32(void)
 {
 
-   checksumVal = g_bufferRx[0] ^ g_bufferRx[1] ^ g_bufferRx[2] ^ g_bufferRx[3] ^ g_bufferRx[4] ^ g_bufferRx[5];
-   // if (checksumVal == g_bufferRx[6])
-   {
+//    checksumVal = g_bufferRx[0] ^ g_bufferRx[1] ^ g_bufferRx[2] ^ g_bufferRx[3] ^ g_bufferRx[4] ^ g_bufferRx[5];
+//    if (checksumVal == g_bufferRx[6])
+//    {
         sprintf(tem1, "%d", g_bufferRx[0]);
         client.publish(DASHBOARD_TOPIC_TEMPERATURE1, tem1, true);
         sprintf(hum1, "%d", g_bufferRx[1]);
@@ -143,17 +140,15 @@ void Dashboard_HandleDataFromSTM32(void)
         client.publish(DASHBOARD_TOPIC_RAIN, rain, true);
 
         /* MySQL */
-        sprintf(sensors, "%d/%d/%d/%d/%d/%d", g_bufferRx[0], g_bufferRx[1], g_bufferRx[2],\
-                                              g_bufferRx[3], g_bufferRx[4], g_bufferRx[5]);
-        client.publish(DASHBOARD_TOPIC_SENSOR, sensors, true);
+        sprintf(sensor, "%d/%d/%d/%d/%d/%d", g_bufferRx[0], g_bufferRx[1], g_bufferRx[2], g_bufferRx[3], g_bufferRx[4], g_bufferRx[5]);
+        client.publish(DASHBOARD_TOPIC_SENSOR, sensor, true);
 
         /* Chat bot */
         sprintf(dhtSensor, "%d/%d/%d/%d", g_bufferRx[0], g_bufferRx[1], g_bufferRx[2], g_bufferRx[3]);
         client.publish(CHATBOT_TOPIC_DHT, dhtSensor, true);
         sprintf(adcSensor, "%d/%d", g_bufferRx[4], g_bufferRx[5]);
         client.publish(CHATBOT_TOPIC_ADC, adcSensor, true);
-        digitalWrite(2, 0);
-   }
+//    }
 }
 
 void DashBoard_ConnectToBroker() {
@@ -200,14 +195,6 @@ void Dashboard_Callback(char* topic, byte *payload, unsigned int length) {
         else if (topicMsg == "OFF2")
         {
             Serial.println("F0");
-        }
-        else if (topicMsg == "ON3")
-        {
-            Serial.println("U1");
-        }
-        else if (topicMsg == "OFF3")
-        {
-            Serial.println("U0");
         }
         client.publish(CHATBOT_TOPIC_STATUS, statusMsg, true);
     }

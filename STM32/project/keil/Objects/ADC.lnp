@@ -23,6 +23,8 @@
 ".\objects\rtc.o"
 ".\objects\appservo.o"
 ".\objects\light.o"
+".\objects\ringbuffer.o"
+".\objects\serial.o"
 ".\objects\croutine.o"
 ".\objects\event_groups.o"
 ".\objects\heap_2.o"

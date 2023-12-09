@@ -49,3 +49,6 @@
 .\objects\main.o: ..\..\myLibrary\DelayTimer.h
 .\objects\main.o: ..\..\myLibrary\appTimeManage.h
 .\objects\main.o: ..\..\myLibrary\appServo.h
+.\objects\main.o: ..\..\myLibrary\Serial.h
+.\objects\main.o: C:\Keil_v5\ARM\ARMCC\Bin\..\include\stdarg.h
+.\objects\main.o: ..\..\myLibrary\RingBuffer.h
