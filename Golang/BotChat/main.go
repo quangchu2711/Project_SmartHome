@@ -6,7 +6,6 @@ import (
     "io/ioutil"
     "github.com/ghodss/yaml"
     "time"
-    "strconv"
     mqtt "github.com/eclipse/paho.mqtt.golang"
     "strings"
     tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
@@ -55,6 +54,7 @@ type APP_KitchenStatus_t struct {
 type APP_HomeStatus_t struct {
     LivingRoom APP_LivingRoomStatus_t
     Kitchen APP_KitchenStatus_t
+    Door bool
 }
 
 var g_cfgFile APP_FileConfig_t
@@ -70,23 +70,20 @@ const (
 var APP_RecevieMQTTMessage mqtt.MessageHandler = func(client mqtt.Client, msg mqtt.Message) {
     mqttMsg := string(msg.Payload())
     fmt.Printf("Received message from topic: %s - msg: %s\n", msg.Topic(), mqttMsg)
-    topic := strings.Split(msg.Topic(), "/")
-    fmt.Printf("%s", topic[1])
-    if topic[1] == "DHT11" {
-        g_home.LivingRoom.SensorStatus.DHT11.Temperature = strconv.Itoa(int(mqttMsg[0]))
-        g_home.LivingRoom.SensorStatus.DHT11.Humidity = strconv.Itoa(int(mqttMsg[1]))
-        g_home.Kitchen.SensorStatus.DHT11.Temperature = strconv.Itoa(int(mqttMsg[2]))
-        g_home.Kitchen.SensorStatus.DHT11.Humidity = strconv.Itoa(int(mqttMsg[3]))
-        currentTime1 := time.Now()
-        g_home.LivingRoom.SensorStatus.DHT11.TimeUpdate = currentTime1.Format("01-02-2006 15:04:05")
-        fmt.Println("=> Updated DHT11 value")
-    } else if topic[1] == "ADC" {
-        g_home.LivingRoom.SensorStatus.LDR.Light = strconv.Itoa(int(mqttMsg[0]))
-        g_home.Kitchen.SensorStatus.LDR.Light = strconv.Itoa(int(mqttMsg[1]))
-        currentTime2 := time.Now()
-        g_home.Kitchen.SensorStatus.LDR.TimeUpdate = currentTime2.Format("01-02-2006 15:04:05")
-        fmt.Println("=> Updated ADC value")
-    }
+    sensorData := strings.Split(mqttMsg, "/")
+
+    g_home.LivingRoom.SensorStatus.DHT11.Temperature = sensorData[0]
+    g_home.LivingRoom.SensorStatus.DHT11.Humidity = sensorData[1]
+    g_home.Kitchen.SensorStatus.DHT11.Temperature = sensorData[2]
+    g_home.Kitchen.SensorStatus.DHT11.Humidity = sensorData[3]
+    g_home.LivingRoom.SensorStatus.LDR.Light = sensorData[4]
+    g_home.Kitchen.SensorStatus.LDR.Light = sensorData[5]
+
+    currentTime := time.Now()
+    g_home.Kitchen.SensorStatus.LDR.TimeUpdate = currentTime.Format("01-02-2006 15:04:05")
+    g_home.LivingRoom.SensorStatus.DHT11.TimeUpdate = currentTime.Format("01-02-2006 15:04:05")
+
+    fmt.Println("=> Updated DHT11 and ADC values")
 }
 
 func APP_SendMQTTMessage(msg string) {

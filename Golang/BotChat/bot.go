@@ -45,7 +45,7 @@ func BOT_Progress (msg string, homeStatus *APP_HomeStatus_t) (bool, string) {
         msg = "[Bảng điều khiển/Điều khiển thiết bị/Xem tình trạng nông trại]"
         inlineType = true;
     case "Điều khiển thiết bị", "Contorl", "control":
-        msg = "[Chọn câu lệnh điều khiển/Bật đèn nông trại/Tắt đèn nông trại/Bật quạt nông trại/Tắt quạt nông trại]"
+        msg = "[Chọn câu lệnh điều khiển/Bật đèn nông trại/Tắt đèn nông trại/Bật quạt nông trại/Tắt quạt nông trại/Mở cửa/Đóng cửa]"
         inlineType = true;
     case "Xem tình trạng nông trại", "Status", "status":
         msg = "[Tình trạng nông trại/Trong phòng/Ngoài trời]"
@@ -53,6 +53,8 @@ func BOT_Progress (msg string, homeStatus *APP_HomeStatus_t) (bool, string) {
     case "Trong phòng":
         var timeDifferent string
         var lrledSta string
+        var doorRes string
+
         lrSta := homeStatus.LivingRoom
         tem := "Nhiệt độ trong nông trại: " + "<b>" + lrSta.SensorStatus.DHT11.Temperature + "°C" + "</b>"
         hum := "Độ ẩm trong nông trại: " + "<b>" + lrSta.SensorStatus.DHT11.Humidity + "%" + "</b>"
@@ -65,15 +67,22 @@ func BOT_Progress (msg string, homeStatus *APP_HomeStatus_t) (bool, string) {
         } else {
             lrledSta = "Quạt nông trại" + "<b>" + " đang tắt" + "</b>"
         }
-        if timeDifferent != "" {
-            msg = sensorResponse + "\n" + timeDifferent + "\n" + lrledSta
+        if homeStatus.Door == true {
+            doorRes = "Cửa đang mở"
         } else {
-            msg = sensorResponse + "\n" + lrledSta
+            doorRes = "Cửa đang đóng"
+        }
+        if timeDifferent != "" {
+            msg = sensorResponse + "\n" + timeDifferent + "\n" + lrledSta + "\n" + doorRes
+        } else {
+            msg = sensorResponse + "\n" + lrledSta + "\n" + doorRes
         }
         inlineType = false
     case "Ngoài trời":
         var timeDifferent string
         var kLedSta string
+        var doorRes string
+
         kSta := homeStatus.Kitchen
         tem := "Nhiệt độ ngoài trời: " + "<b>" + kSta.SensorStatus.DHT11.Temperature + "°C" + "</b>"
         hum := "Độ ẩm ngoài trời: " + "<b>" + kSta.SensorStatus.DHT11.Humidity + "%" + "</b>"
@@ -86,10 +95,15 @@ func BOT_Progress (msg string, homeStatus *APP_HomeStatus_t) (bool, string) {
         } else {
             kLedSta = "Đèn nông trại" + "<b>" + " đang tắt" + "</b>"
         }
-        if timeDifferent != "" {
-            msg = sensorResponse + "\n" + timeDifferent + "\n" + kLedSta
+        if homeStatus.Door == true {
+            doorRes = "Cửa đang mở"
         } else {
-            msg = sensorResponse + "\n" + kLedSta
+            doorRes = "Cửa đang đóng"
+        }
+        if timeDifferent != "" {
+            msg = sensorResponse + "\n" + timeDifferent + "\n" + kLedSta + "\n" + doorRes
+        } else {
+            msg = sensorResponse + "\n" + kLedSta + "\n" + doorRes
         }
         inlineType = false
     case "Bật quạt nông trại":
@@ -110,6 +124,16 @@ func BOT_Progress (msg string, homeStatus *APP_HomeStatus_t) (bool, string) {
     case "Tắt đèn nông trại":
         APP_SendMQTTMessage("OFF1")
         msg = "Đèn nông trại đã tắt"
+        homeStatus.Kitchen.LedStatus = false
+        inlineType = false
+    case "Mở cửa":
+        APP_SendMQTTMessage("ON3")
+        msg = "Cửa đã mở"
+        homeStatus.Kitchen.LedStatus = true
+        inlineType = false
+    case "Đóng cửa":
+        APP_SendMQTTMessage("OFF3")
+        msg = "Cửa đã đóng"
         homeStatus.Kitchen.LedStatus = false
         inlineType = false
     default: /* Khác tất cả tin nhắn */

@@ -43,6 +43,12 @@ var APP_RecevieStatusMsg mqtt.MessageHandler = func(client mqtt.Client, msg mqtt
     } else if mqttMsg == "OFF2" && g_cnt > 0 {
         g_home.LivingRoom.LedStatus = false;
         // TELEGRAM_SendReplyMessgae(g_cfgFile.GroupID, "Người dùng Node-Red", "Quạt nông trại đã tắt")
+    } else if mqttMsg == "ON3" && g_cnt > 0 {
+        g_home.Door = true;
+        // TELEGRAM_SendReplyMessgae(g_cfgFile.GroupID, "Người dùng Node-Red", "Quạt nông trại đã bật")
+    } else if mqttMsg == "OFF3" && g_cnt > 0 {
+        g_home.Door = false;
+        // TELEGRAM_SendReplyMessgae(g_cfgFile.GroupID, "Người dùng Node-Red", "Quạt nông trại đã tắt")
     }
     g_cnt++;
     if g_cnt > 1 {
